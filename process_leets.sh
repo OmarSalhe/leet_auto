@@ -1,51 +1,136 @@
 #! /usr/bin/env bash
 
+TODAY=$(date +"%Y-%m-%d")
+
 input_file="unprocessed.txt"
 output_file="processed.txt"
+config_file="config.txt"
+tmp_file="tmp.txt"
 
-solution_file="dummy.txt"
+trap '[[ -f "$tmp_file" ]] && rm -f "$tmp_file" ' EXIT # Clean up temporary file, if script terminates prematurely
 
-if [[ ! -f "$input_file" ]]; then
-	echo "Cannot access solutions to process."
+run_log="run_log.txt"
+error_log="error_log.txt"
+
+last_run="last_run.txt"
+
+check_if_file_exists() {
+	local file="$1"
+	local description="$2"
+
+	if [[ ! -f "$file" ]]; then
+		echo "$TODAY - [ERROR] Required file $file is missing. Please ensure the $description exists and is in the correct directory."
+		exit 1
+	fi
+}
+# Ensures necessary files exist before executing
+check_if_file_exists "$input_file" "Input File"
+check_if_file_exists "$run_log" "Log containing successful executions"
+check_if_file_exists "$last_run" "Most recent execution is saved onto a txt file and"
+check_if_file_exists "$error_log" "Log containing all errors and or warnings"
+
+if [[ ! -f "$config_file" ]]; then
+	echo "$TODAY - [ERROR] Required file $config_file is missing. Please create or provide the necessary file." >> "$error_log"
 	exit 1
 fi
 
-difficulty=""
-name=""
-type=""
- 
-while IFS= -r read line
-do	
-	if [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]]; then
-        	echo "Warning: Skipping empty line."
-        	continue
-    	fi
- 
-	if [[ "$line" == "EOS" ]]; then
-		difficulty=""
-		name=""
-		type=""
-		break
+last_executed=$(:<"$last_run" || echo "none") # Contains the date of the most recent successful execution
+
+# Ensures script only executes once a day
+if [[ "$last_executed" != "$TODAY" ]]; then
+
+	# Source external repository from user configurations
+	source "$config_file"
+
+	# Ensure path provided leads to a directory
+	if [[ ! -d "$EXTERNAL_REPO" ]]; then
+		echo "$TODAY - [ERROR] Configured path does not lead to an external repository." >> "$error_log"
+		exit 1
 	fi
 
-	if [[ "$solution_file" == "dummy.txt" ]]; then
-		IFS=',' read difficulty name type <<< "$line"
-		if [[ -z "$difficulty" || -z "$name" || -z "$type" ]]; then
-    			echo "Error: Malformed input line - $line"
-   	 		continue
-		fi
- 
-		mkdir -p "$difficulty/$name"
-		solution_file="$difficulty/$name/$name.$type"
-		touch "$solution_file"
+	solution_file="dummy.txt"
+	
+	difficulty=""
+	name=""
+	type=""
 
-		if [[ ! -f "$solution_file" ]]; then
-			echo "Failed to create solution file"
-			exit 1
+	marker="EOS" # End-of-solution
+	touch "$tmp_file"
+
+	while IFS= read -r line
+	do	
+		# Skips lines containing ONLY whitespaces (i.e. \n, \t, \b, etc.)
+	        if [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]] && [[ "$line" != "$marker" ]]; then
+				echo "$TODAY - [WARNING] Skipping empty line." >> "$error_log" 
+				continue
 		fi
+		
+		# Stops processing input once marker reached
+		if [[ "$line" == "$marker" ]]; then
+			break
+		fi
+		
+		# Updates solution_file variable with given metadata, if still defaulted
+		if [[ "$solution_file" == "dummy.txt" ]]; then
+			IFS=',' read -r difficulty name type <<< "$line"
+
+			# Terminates script if missing any fields
+			if [[ -z "$difficulty" || -z "$name" || -z "$type" ]]; then
+					printf "$TODAY - [ERROR] Malformed input line\n\t%s." "$line" >> "$error_log"
+				exit 1
+			fi
+			
+			# Makes a directory for the created file, if it does not exist
+			mkdir -p "$EXTERNAL_REPO/$difficulty/$name" || {
+				echo "$TODAY - [ERROR] Failed to create directory $EXTERNAL_REPO/$difficulty/$name."
+				exit 1
+			}
+			
+			# Creates a file for the solution on the external repository
+			solution_file="$EXTERNAL_REPO/$difficulty/$name/$name.$type" 
+			touch "$solution_file" || {
+				echo "$TODAY - [ERROR] Failed to create file $EXTERNAL_REPO/$difficulty/$name/$name.$type."
+				exit 1
+			}
+		
+		# Writes solution, if solution file exists
+		else
+			echo "$line" >> "$solution_file"
+		fi
+		
+		# Archive processed data
+		echo "$line" >> "$output_file"
+
+	done < "$input_file"
+
+	# Create a backup for the input file
+	if [[ ! cp "$input_file" "${input_file}.bak" ]]; then
+		echo "$TODAY - [ERROR] Failed to create a backup file"
+		exit 1
+	fi
+
+	# Writes remaining unprocessed data onto a temporary file
+	awk -v marker="$marker"	'
+    		BEGIN { marker_found = 0 }
+    		$0 == marker { marker_found = 1; next }
+    		marker_found { print }
+		' "$input_file" > "$tmp_file"
+
+	# Ensures temporary file contains data before overwriting input file
+	if [[ -s "$tmp_file" ]]; then
+		mv "$tmp_file" "$input_file"
+		rm -f "${input_file}.bak" # Clean up backup file if overwriting is successful
 	else
-		echo $line >> "$solution_file"
+		echo "$TODAY - [ERROR] Overwriting failed, restoring backup." >> "$error_log"
+		mv "${input_file}.bak" "$input_file" # Restores input file
+		exit 1
 	fi
 
-	echo $line >> output_file	
-done < input_file 
+	echo "$TODAY" > "$last_run" # Updates most recent successful execution
+	echo "$TODAY - [INFO]: Execution completed on $TODAY." >> "$run_log" # Stores successful execution
+
+else
+	printf "$TODAY - [ERROR] Script already executed on %s.\nTo force execution, clear the %s file or update its content manually." "$TODAY" "$last_run" >> "$error_log"
+fi
+
+exit 0
