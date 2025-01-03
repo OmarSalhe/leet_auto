@@ -2,6 +2,9 @@
 
 TODAY=$(date +"%Y-%m-%d")
 
+SCRIPT_DIR_PATH=$(dirname "$0") # Path to the script's directory
+
+# Files
 input_file="unprocessed.txt"
 output_file="processed.txt"
 config_file="config.txt"
@@ -9,6 +12,7 @@ tmp_file="tmp.txt"
 
 trap '[[ -f "$tmp_file" ]] && rm -f "$tmp_file"' EXIT # Clean up temporary file, if script terminates prematurely
 
+# Logs
 run_log="run_log.txt"
 error_log="error_log.txt"
 
@@ -31,6 +35,11 @@ check_if_file_exists "$error_log" "Log containing all errors and or warnings"
 
 if [[ ! -f "$config_file" ]]; then
 	echo "$TODAY - [ERROR] Required file $config_file is missing. Please create or provide the necessary file." >> "$error_log"
+	exit 1
+fi
+
+if [[ ! -s "$input_file" ]]; then
+	echo "$TODAY - [ERROR] No input to process. Please provide input before executing script" >> "$error_log"
 	exit 1
 fi
 
@@ -131,6 +140,20 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 		mv "${input_file}.bak" "$input_file" # Restores input file
 		exit 1
 	fi
+
+	# Commit and push changes onto the script's remote repo
+	cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
+	git add . && git commit -m "Successfully added $name on $TODAY" && git push || {
+		echo "$TODAY [ERROR] Failed to push changes to the script's repository"
+		exit 1
+	}
+
+	# Commit and push changes onto the external repo's remote repo
+	cd "$EXTERNAL_REPO_PATH" || exit 1
+	git add . && git commit -m "Added $name without explanation" && git push || {
+		echo "$TODAY [ERROR] Failed to push changes to the external repository"
+		exit 1
+	}
 
 	echo "$TODAY" > "$last_run" # Updates most recent successful execution
 	echo "$TODAY - [INFO] Execution completed on $TODAY." >> "$run_log" # Stores successful execution
