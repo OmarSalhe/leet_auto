@@ -7,7 +7,7 @@ output_file="processed.txt"
 config_file="config.txt"
 tmp_file="tmp.txt"
 
-trap '[[ -f "$tmp_file" ]] && rm -f "$tmp_file" ' EXIT # Clean up temporary file, if script terminates prematurely
+trap '[[ -f "$tmp_file" ]] && rm -f "$tmp_file"' EXIT # Clean up temporary file, if script terminates prematurely
 
 run_log="run_log.txt"
 error_log="error_log.txt"
@@ -34,7 +34,13 @@ if [[ ! -f "$config_file" ]]; then
 	exit 1
 fi
 
-last_executed=$(:<"$last_run" || echo "none") # Contains the date of the most recent successful execution
+last_executed=""
+# Contains the date of the most recent successful execution
+if [[ -f "$last_run" && -s "$last_run" ]]; then
+    last_executed=$(<"$last_run")
+else
+    last_executed="none"
+fi
 
 # Ensures script only executes once a day
 if [[ "$last_executed" != "$TODAY" ]]; then
@@ -43,7 +49,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	source "$config_file"
 
 	# Ensure path provided leads to a directory
-	if [[ ! -d "$EXTERNAL_REPO" ]]; then
+	if [[ ! -d "$EXTERNAL_REPO_PATH" ]]; then
 		echo "$TODAY - [ERROR] Configured path does not lead to an external repository." >> "$error_log"
 		exit 1
 	fi
@@ -76,20 +82,20 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 
 			# Terminates script if missing any fields
 			if [[ -z "$difficulty" || -z "$name" || -z "$type" ]]; then
-					printf "$TODAY - [ERROR] Malformed input line\n\t%s." "$line" >> "$error_log"
+					printf "%s - [ERROR] Malformed input line\n\t%s.\n" "$TODAY" "$line" >> "$error_log"
 				exit 1
 			fi
 			
 			# Makes a directory for the created file, if it does not exist
-			mkdir -p "$EXTERNAL_REPO/$difficulty/$name" || {
-				echo "$TODAY - [ERROR] Failed to create directory $EXTERNAL_REPO/$difficulty/$name."
+			mkdir -p "$EXTERNAL_REPO_PATH/$difficulty/$name" || {
+				echo "$TODAY - [ERROR] Failed to create directory $EXTERNAL_REPO_PATH/$difficulty/$name."
 				exit 1
 			}
 			
 			# Creates a file for the solution on the external repository
-			solution_file="$EXTERNAL_REPO/$difficulty/$name/$name.$type" 
+			solution_file="$EXTERNAL_REPO_PATH/$difficulty/$name/$name.$type" 
 			touch "$solution_file" || {
-				echo "$TODAY - [ERROR] Failed to create file $EXTERNAL_REPO/$difficulty/$name/$name.$type."
+				echo "$TODAY - [ERROR] Failed to create file $EXTERNAL_REPO_PATH/$difficulty/$name/$name.$type."
 				exit 1
 			}
 		
@@ -104,7 +110,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	done < "$input_file"
 
 	# Create a backup for the input file
-	if [[ ! cp "$input_file" "${input_file}.bak" ]]; then
+	if ! cp "$input_file" "${input_file}.bak"; then
 		echo "$TODAY - [ERROR] Failed to create a backup file"
 		exit 1
 	fi
@@ -112,7 +118,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	# Writes remaining unprocessed data onto a temporary file
 	awk -v marker="$marker"	'
     		BEGIN { marker_found = 0 }
-    		$0 == marker { marker_found = 1; next }
+    		$0 == marker && marker_found == 0 { marker_found = 1; next }
     		marker_found { print }
 		' "$input_file" > "$tmp_file"
 
@@ -127,10 +133,10 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	fi
 
 	echo "$TODAY" > "$last_run" # Updates most recent successful execution
-	echo "$TODAY - [INFO]: Execution completed on $TODAY." >> "$run_log" # Stores successful execution
+	echo "$TODAY - [INFO] Execution completed on $TODAY." >> "$run_log" # Stores successful execution
 
 else
-	printf "$TODAY - [ERROR] Script already executed on %s.\nTo force execution, clear the %s file or update its content manually." "$TODAY" "$last_run" >> "$error_log"
+	printf "$TODAY - [ERROR] Script already executed on %s.\nTo force execution, clear the %s file or update its content manually.\n" "$TODAY" "$last_run" >> "$error_log"
 fi
 
 exit 0
