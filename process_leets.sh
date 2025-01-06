@@ -91,7 +91,7 @@ tmp_file="tmp.txt"
 run_log="run_log.txt"
 error_log="error_log.txt"
 
-# Schedule
+# Time of last execution
 last_run="last_run.txt"
 
 # Ensures necessary files exist before executing
