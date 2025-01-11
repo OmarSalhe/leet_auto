@@ -1,6 +1,8 @@
 # #! /usr/bin/env bash
 
-trap 'rm -f "$tmp_file" "${input_file}.bak" "${output_file}.bak" "${run_log}.bak" "${error_log}.bak" "${last_run}.bak"' EXIT
+trap 'for file in "$tmp_file" "${input_file}.bak" "${output_file}.bak" "${run_log}.bak" "${error_log}.bak" "${last_run}.bak"; do
+    rm -f "$file"
+done' EXIT
 
 TODAY=$(date +"%Y-%m-%d")
 SCRIPT_DIR_PATH=$(dirname "$0") # Path to the script's directory
@@ -71,6 +73,13 @@ create_backups() {
 			log_occurence "ERROR" "Failed to create backup file for $file" "$error_log"
 			exit 1
 		fi
+	done
+}
+
+remove_backups() {
+	local files=("$@")
+	for file in "${files[@]}"; do
+		rm -f "${file}.bak"
 	done
 }
 
@@ -156,11 +165,17 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 			
 			# Creates a file for the solution on the external repository
 			solution_file="$solution_dir/$name.$type" 
-			touch "$solution_file" || {
-				log_occurence "ERROR" "System failed to create $solution_file." "$error_log"
-				restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
-				exit 1
-			}
+
+			# Create file if did not already exist
+			if [[ ! -f "$solution_file" ]]; then
+				touch "$solution_file" || {
+					log_occurence "ERROR" "System failed to create $solution_file." "$error_log"
+					restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
+					exit 1
+				}
+			else
+				> "$solution_file"
+			fi
 		
 		# Writes solution, if solution file was created
 		else
@@ -192,22 +207,24 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	echo "$TODAY" > "$last_run" # Updates most recent successful execution
 
 	#Commit and push changes onto the script's remote repo
-	# cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
-	# git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
-	# 	log_occurence "ERROR" "Failed to push changes onto the script's repository" "$error_log"
-	# 	restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
-	# 	exit 1
-	# }
+	cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
+	git pull && git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
+		log_occurence "ERROR" "Failed to push changes onto the script's repository" "$error_log"
+		restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
+		exit 1
+	}
 
 	# Commit and push changes onto the external repo's remote repo
-	# cd "$EXTERNAL_REPO_PATH" || exit 1
-	# git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
-	# 	log_occurence "ERROR" "Failed to push changes to the external repository" "$error_log"
-	# 	restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
-	# 	exit 1
-	# }
+	cd "$EXTERNAL_REPO_PATH" || exit 1
+	git pull && git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
+		log_occurence "ERROR" "Failed to push changes to the external repository" "$error_log"
+		restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
+		exit 1
+	}
 
 	log_occurence "INFO" "Execution sucessfully completed" "$run_log" # Store successfule executions
+
+	remove_backups "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 
 else
 	log_occurence "ERROR" "Script has already executed. To force execution, clear $last_run or update its content" "$error_log"
