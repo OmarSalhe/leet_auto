@@ -1,1 +1,312 @@
+Medium,2270. Number of Ways to Split Array,py
+'''
+You are given a 0-indexed integer array nums of length n.
+
+nums contains a valid split at index i if the following are true:
+
+The sum of the first i + 1 elements is greater than or equal to the sum of the last n - i - 1 elements.
+    - n - i - 1 = (n - 1) - i = remaining elements
+    - i + 1 -> shifting to 1-index -> includes ith element
+    - the sum of the first x elements must be >= to the sum of the last x - 1 elements
+There is at least one element to the right of i. That is, 0 <= i < n - 1.
+    - part cannot be made at the end of arr or at the start -> splits are non-empty
+
+Return the number of valid splits in nums.
+
+return the number of times the sum of the first i + 1 elements >= the remaining elements
+
+*only one split per iteration -> only splitting into two*
+
+i = 0, len(nums) - 1 always fails
+len(nums) = big -> O(n) needed
+
+slowest part = finding sum for every range -> need to find sum at every index first (prefix sum)
+
+nums = [10,4,-8,7]
+Decision:
+    x = 1
+    left = 10, right = 4 - 8 + 7 = 5 -> valid
+    x = 2
+    left = 10 + 4 = right = -8 + 7 = -1 -> valid
+    x = 3
+    left = 10 + 4 - 8 = 6, right = 7 -> invalid
+
+Generalized:
+    for x in [1, len(nums) - 2]:
+        if prefix[x] >= prefix[n - 1] - prefix[x]:
+            valid part formed
+'''
+class Solution:
+    def waysToSplitArray(self, nums: List[int]) -> int:
+        n = len(nums)
+        prefix = [0] * (n + 1)
+
+        for i in range(1, n + 1):
+            prefix[i] += prefix[i - 1] + nums[i - 1]
+        
+        valid_part = 0
+        for i in range(1, n):
+            if prefix[i] >= prefix[n] - prefix[i]:
+                valid_part += 1
+        
+        return valid_part
+EOS
+Easy,2185. Counting Words With a Given Prefix,py
+'''
+You are given an array of strings words and a string pref.
+
+Return the number of strings in words that contain pref as a prefix.
+
+A prefix of a string s is any leading contiguous substring of s.
+
+prefix at start -> check first len(pref) letters
+
+approach:
+    for word in words:
+        if pref matches first len(pref) letters in word:
+            increment count
+
+can do window check type of thing if slicing less intuitive
+i.e.
+    if pref[i] == word[j]:
+        increment both
+    else:
+        don't match -> stop immediately
+    
+    if i == len(pref):
+        letters matched len(pref) times AKA same words
+'''
+
+class Solution:
+    def prefixCount(self, words: List[str], pref: str) -> int:
+        count = 0
+        for word in words:
+            if word[:len(pref)] == pref:
+                count += 1
+        return count
+EOS
+Medium,1769. Minimum Number of Operations to Move All Balls to Each Box,py
+'''
+You have n boxes. You are given a binary string boxes of length n, where boxes[i] is '0' if the ith box 
+is empty, and '1' if it contains one ball.
+    - balls initially separate
+    - think arr instead of str
+
+In one operation, you can move one ball from a box to an adjacent box. Box i is adjacent to box j if abs(i - j) == 1. 
+Note that after doing so, there may be more than one ball in some boxes.
+    - one ball at a time
+    - total balls <= boxes
+    - one unit = one adj box = 1 -> ops to any box = 1 * abs(i - j) = 1 unit * num of boxes
+
+Return an array answer of size n, where answer[i] is the minimum number of operations needed to move all the balls to the ith box.
+    - assuming boxes form a linear path (non-circular), min ops = dist to box (or index)
+    - only one target box per query
+        - query = each index as the target
+
+Each answer[i] is calculated considering the initial state of the boxes.
+    - some value remains constant
+        - empty boxes and starting positions
+
+total dist = abs(i1 - j) + abs(i2 - j) + ... + abs(in - j)
+           = abs(i1 + i2 + ... + in - j*n) -> for every non-empty box
+           = abs(sum - j*n); sum = n*(n+1) / 2, but this fails to remove contributions from empty boxes
+        -> = abs(sum - j * n - dist of empty boxes); dist of empty = sum of (empty indices + 1) - j * (num of empty boxes)
+
+bugs out with boxes = "001011", indices 3, 4
+because of symmetry -> some indices are negated. to offset, just split indices centered about j (so both sides remain positive)
+eq doesn't change (i.e. abs(7-5) = abs(3-5)) so only change is to sum the intervals sep -> (prefix sum)
+
+'''
+class Solution:
+    def minOperations(self, boxes: str) -> List[int]:
+        n = len(boxes)
+        prefix = [0] * (n + 1)
+        not_empty = [0] * (n + 1)
+
+        for i in range(1, n + 1):
+            if boxes[i - 1] == '1':
+                prefix[i] = i
+                not_empty[i] = 1
+            not_empty[i] += not_empty[i - 1]
+            prefix[i] += prefix[i - 1]
+        
+        answer = [0] * n
+        for i in range(1, n + 1):
+            left = abs(prefix[i] - i * not_empty[i])
+            right = prefix[n] - prefix[i] - i * (not_empty[n] - not_empty[i])
+            answer[i - 1] = left + right
+            print(left, right)
+        return answer
+EOS
+Easy,1408. String Matching in an Array,py
+'''
+Given an array of string words, return all strings in words that is a substring of another word.
+You can return the answer in any order.
+    - return word if word is found in another word
+
+A substring is a contiguous sequence of characters within a string
+    - sub < main
+    - ltrs are consecutive
+
+len(words), len(words[i]) = small -> bf allowed
+bf = search for word in every word = O(n * m)
+'''
+class Solution:
+    def stringMatching(self, words: List[str]) -> List[str]:
+        s = ' '.join(words)
+        return [word for word in words if s.count(word) > 1]
+EOS
+Medium,2466. Count Ways to Build Good Strings,py
+'''
+Given the integers zero, one, low, and high, we can construct a string by starting with an empty 
+string, and then at each step perform either of the following:
+
+Append the character '0' zero times.
+Append the character '1' one times.
+This can be performed any number of times.
+    - must append all at once
+        i.e. if one = 5, zero = 1 -> append 1 = 11111
+    - if one, zero > high, cannot use respective number
+        - 1 <= zero, one <= low -> dont need to worry
+
+A good string is a string constructed by the above process having a length between low and high (inclusive).
+    - consider all strs low ≤ len ≤ high
+
+Return the number of different good strings that can be constructed satisfying these properties.
+    - order of strs matter -> no dups
+        - keep track of strs made -> if sim
+        - use combinatorics -> handles dups BUT factorials
+
+Since the answer can be large, return it modulo 109 + 7.
+    - applied at the end
+
+goal: form all possible bit strs from len high -> low, containing zero 0s and one 1s, and return the amount % 1000000007
+
+Topics:
+    - counting/combinations
+        - how many possibility per index -> count[i] = count[i-1] * possibility; 0 <= possibility <= 2
+    - combinatorics
+        - how many ways can one fit into [low, high]?
+
+1 <= low <= high <= 10**5
+    - O(n) approach needed, sim too slow
+    - (high - low) = 10***5 - 1 wc, range too large to iterate
+
+
+low = 3, high = 3, zero = 1, one = 1
+Decision (sim):
+    if len > high: stop
+    count = 1 if cur bit str >= low else 0
+
+    append one 1 (if len + one <= high) -> len += one, append 0/1 (if ...)
+    append zero 0 (if len + zero <= high) -> len += zero, append 0/1 (if ...)
+
+
+_ _ _ -> each slot can be either zero/one so 2*2*2 -> why? if none chosen one/zero can fit in low=high=3 spots
+
+low = 3, high = 3, zero = 1, one = 1
+Decision (counting):
+    if one + i <= high:
+        count[i] += count[i-1]
+    if zero + i <= high:
+        count[i] += count[i-1]
+    
+    if neither:
+        break -> if none can fit at that point, none can fit later
+    
+    sum all count[i]s where low - 1 < i < high
+'''
+
+class Solution:
+    def countGoodStrings(self, low: int, high: int, zero: int, one: int) -> int:
+        count = [0] * (high + 1)
+        count[0] = 1
+
+        res = 0
+        for i in range(1, high + 1):
+            count[i] = ((count[i-one] if i >= one else 0) + (count[i-zero] if i>=zero else 0)) % 1000000007
+            if i >= low and i <= high:
+                res = (res + count[i])% 1000000007
+        return res
+
+        #     if i - one > -1: count[i] += count[i - one]
+        #     if i - zero > -1: count[i] += count[i - zero]
+        #     if i >= low:
+        #         res += count[i]
+        # return res % 1000000007
+
+        # @cache
+        # def count_cont(length: int, low: int, high: int, one: int, zero: int):
+        #     if length > high: return 0
+
+        #     count = 1 if length >= low else 0
+
+        #     add_one = 0
+        #     if one + length <= high:
+        #         add_one = count_cont(length + one, low, high, one, zero) % 1000000007
+
+        #     add_zero = 0
+        #     if zero + length <= high:
+        #         add_zero = count_cont(length + zero, low, high, one, zero) % 1000000007
+            
+        #     count += add_one + add_zero
+        #     return count % 1000000007
+
+        # return count_cont(0, low, high, zero, one)
+EOS
+Medium,2461. Maximum Sum of Distinct Subarrays With Length K,py
+class Solution:
+    def maximumSubarraySum(self, nums: List[int], k: int) -> int:
+        max_win = 0 # maximum k-length subarray sum
+        win_sum = 0 # current k-length subarray sum
+        win_nums = collections.defaultdict(int) # numbers in cur k-length subarray
+
+        n = len(nums)
+        left, right = 0, 0
+
+        while right < n: # expand right bound to end of array
+            win_nums[nums[right]] += 1
+            win_sum += nums[right]
+
+            # contract window if any duplicates arise
+            while left <= right and win_nums[nums[right]] > 1:
+                # print(f'window: {nums[left: right + 1]}')
+                win_sum -= nums[left]
+                win_nums[nums[left]] -= 1
+                left += 1
+            
+            if right - left + 1 == k: # if valid k-length window formed
+                max_win = max(max_win, win_sum)
+
+                # shift left bound forward
+                win_nums[nums[left]] -= 1
+                win_sum -= nums[left]
+
+                left += 1
+
+            # shift right bound forward
+            right += 1
+        
+        return max_win
+EOS
+Medium,2381. Shifting Letters II,py
+class Solution:
+    def shiftingLetters(self, s: str, shifts: List[List[int]]) -> str:
+        val = [[False, 0] for _ in range(len(s) + 1)]
+        for i in range(len(shifts)):
+            start, end, direction = shifts[i]
+            sign = 1 if direction else -1
+            val[start][0], val[start][1] = True, val[start][1] + sign
+            val[end + 1][0], val[end + 1][1] = True, val[end + 1][1] - sign
+        
+        shift = 0
+        res = []
+        for i in range(len(s)):
+            if val[i][0]:
+                shift += val[i][1]
+            
+            res.append(chr((ord(s[i]) + shift - ord('a')) % 26 + ord('a')))
+        
+        return ''.join(res)
+EOS
 EOS

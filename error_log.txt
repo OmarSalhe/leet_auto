@@ -1,0 +1,2 @@
+2025-01-10 - [ERROR] Script has already executed. To force execution, clear last_run.txt or update its content
+2025-01-10 - [ERROR] Script has already executed. To force execution, clear last_run.txt or update its content
