@@ -225,9 +225,6 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	log_occurence "INFO" "Execution sucessfully completed" "$run_log" # Store successfule executions
 
 	remove_backups "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
-
-else
-	log_occurence "ERROR" "Script has already executed. To force execution, clear $last_run or update its content" "$error_log"
 fi
 
 exit 0
