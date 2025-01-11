@@ -142,7 +142,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 			IFS=',' read -r difficulty name type <<< "$line" || {
 				log_occurence "ERROR" "Malformed input line - $line" "$error_log"
 				log_occurence "DEBUG" "Likely cause(s): Missing necessary field(s) (difficulty, problem name, file type (language used))"
-				restore_files "$input_file" "$output_file" "$run_log" "$error_log"
+				restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 				exit 1
 			}
 			
@@ -150,7 +150,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 			solution_dir="$EXTERNAL_REPO_PATH/$difficulty/$name"
 			mkdir -p "$solution_dir" || {
 				log_occurence "ERROR" "System failed to create directory $solution_dir." "$error_log"
-				restore_files "$input_file" "$output_file" "$run_log" "$error_log"
+				restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 				exit 1
 			}
 			
@@ -158,7 +158,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 			solution_file="$solution_dir/$name.$type" 
 			touch "$solution_file" || {
 				log_occurence "ERROR" "System failed to create $solution_file." "$error_log"
-				restore_files "$input_file" "$output_file" "$run_log" "$error_log"
+				restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 				exit 1
 			}
 		
@@ -185,29 +185,29 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 	else
 		log_occurence "ERROR" "Overwriting failed, restoring backup." "$error_log"
 		log_occurence "DEBUG" "Likely cause(s): solution(s) are not separated by markers or too few solutions in $input_file. (To fix, place an extra marker on the bottom)" "$error_log"
-		restore_files "$input_file" "$output_file" "$run_log" "$error_log"
+		restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 		exit 1
 	fi
 
 	echo "$TODAY" > "$last_run" # Updates most recent successful execution
 
 	#Commit and push changes onto the script's remote repo
-	cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
-	git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
-		log_occurence "ERROR" "Failed to push changes onto the script's repository" "$error_log"
-		restore_files "$input_file" "$output_file" "$run_log" "$error_log"
-		exit 1
-	}
+	# cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
+	# git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
+	# 	log_occurence "ERROR" "Failed to push changes onto the script's repository" "$error_log"
+	# 	restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
+	# 	exit 1
+	# }
 
 	# Commit and push changes onto the external repo's remote repo
-	cd "$EXTERNAL_REPO_PATH" || exit 1
-	git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
-		log_occurence "ERROR" "Failed to push changes to the external repository" "$error_log"
-		restore_files "$input_file" "$output_file" "$run_log" "$error_log"
-		exit 1
-	}
+	# cd "$EXTERNAL_REPO_PATH" || exit 1
+	# git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
+	# 	log_occurence "ERROR" "Failed to push changes to the external repository" "$error_log"
+	# 	restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
+	# 	exit 1
+	# }
 
-	log_occurence "INFO" "Execution sucessfully completed" >> "$run_log" # Store successfule executions
+	log_occurence "INFO" "Execution sucessfully completed" "$run_log" # Store successfule executions
 
 else
 	log_occurence "ERROR" "Script has already executed. To force execution, clear $last_run or update its content" "$error_log"
