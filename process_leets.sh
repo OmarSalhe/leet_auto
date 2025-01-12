@@ -208,7 +208,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 
 	#Commit and push changes onto the script's remote repo
 	cd "$SCRIPT_DIR_PATH" || exit 1 # Ensure we're in the script's directory
-	git pull && git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
+	git add "$run_log" "$input_file" "$output_file" "$error_log" "$last_run" && git commit -m "Successfully added $name on $TODAY" && git push || {
 		log_occurence "ERROR" "Failed to push changes onto the script's repository" "$error_log"
 		restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 		exit 1
