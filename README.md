@@ -20,6 +20,8 @@ Could I have "my way or the no way"-ed everyone and have them adopt the superior
 ## Features? (bugs)
 - Because the script only proceeds if `unprocessed.txt` is successfully overwritten by a temporary file and a prerequisite for overwriting is the temporary file containing remaining solutions, if only one solution is in `unprocessed.txt` before executing then the script will not properly execute.
 > The fix to this is to always have a designated `EOS` marker at the bottom of the file.
+- Backup files are not properly cleaned up upon successful exection.
+> Ran out of time, and backup files was a recent addiction so I did not get to it. Doesn't interfere with later excutions though, so its annoying if anything.
 
 ## What's Next
 This is just a list of things to add to keep this project "alive"
