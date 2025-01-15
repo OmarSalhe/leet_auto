@@ -216,7 +216,7 @@ if [[ "$last_executed" != "$TODAY" ]]; then
 
 	# Commit and push changes onto the external repo's remote repo
 	cd "$EXTERNAL_REPO_PATH" || exit 1
-	git pull && git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
+	git add "$solution_file" && git commit -m "Added $name without explanation" && git push || {
 		log_occurence "ERROR" "Failed to push changes to the external repository" "$error_log"
 		restore_files "$input_file" "$output_file" "$run_log" "$error_log" "$last_run"
 		exit 1
