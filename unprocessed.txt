@@ -1,1 +1,441 @@
+Medium,2415. Reverse Odd Levels of Binary Tree,py
+class Solution:
+    def reverseOddLevels(self, root):
+        if not root:
+            return None
+
+        queue = [root]
+        level = 0
+
+        while queue:
+            size = len(queue)
+            current_level_nodes = []
+
+            # Process all nodes at the current level.
+            for _ in range(size):
+                node = queue.pop(0)
+                current_level_nodes.append(node)
+
+                if node.left:
+                    queue.append(node.left)
+                if node.right:
+                    queue.append(node.right)
+
+            # reverse values while nodes maintain children
+            if level % 2 == 1:
+                left, right = 0, len(current_level_nodes) - 1
+                while left < right:
+                    tmp = current_level_nodes[left].val
+                    current_level_nodes[left].val = current_level_nodes[
+                        right
+                    ].val
+                    current_level_nodes[right].val = tmp
+                    left += 1
+                    right -= 1
+
+            level += 1
+
+        return root
+EOS
+Medium,2530. Maximal Score After Applying K Operations,py
+class Solution:
+    def maxKelements(self, nums: List[int], k: int) -> int:
+        def ceil(n): # -> ceiling function
+            return n // 3 if n % 3 == 0 else (n // 3) + 1
+        
+
+        # turning default min-heap to max-heap
+        heap = [-num for num in nums]
+        heapq.heapify(heap)
+
+        i = 0
+        score = 0
+        # add highest points to score each turn until k turns
+        while i < k:
+            i += 1
+            points = -heapq.heappop(heap)
+            score += points
+            heapq.heappush(heap, -ceil(points))
+
+        return score
+
+        """
+        Approach is straight-forward: just add the biggest number in the list, divide it by 3, repeat
+
+        Time Complexity = heappush + heappop, k times = O(2klogn) ~ O(klogn)
+        Space Complexity = heap = O(n)
+        """
+EOS
+Medium,2559. Count Vowel Strings in Ranges,py
+'''
+You are given a 0-indexed array of strings words and a 2D array of integers queries.
+    - each index contains a single str
+Each query queries[i] = [li, ri] asks us to find the number of strings present in the range li to ri (both inclusive) of words that start and end with a vowel.
+    - ri + 1 to include ri
+    - if s[0], s[n-1] in vowel -> set
+    - checking every range = O(n2) -> too slow, must know values before hand (preprocess) + a way to find values in a range (prefix sum)
+Return an array ans of size queries.length, where ans[i] is the answer to the ith query.
+
+Note that the vowel letters are 'a', 'e', 'i', 'o', and 'u'.
+
+len(words) = large -> O(n) needed
+
+Approach:
+    figure out # of strings encountered that start and end w/ vowel at every index -> single pass
+        for ever str in words
+            if end and start == vowl -> increment total so far
+    for every query find the number of 'good' strings within that range; i.e. prefix[r] (total encountered) - prefix[l] (excluded portion)
+
+TC = O(n) -> single pass
+SC = O(n + m) -> prefix + output
+'''
+class Solution:
+    def vowelStrings(self, words: List[str], queries: List[List[int]]) -> List[int]:
+        n, m = len(words), len(queries)
+        prefix = [0] * (n + 1)
+        answer = [0] * m
+        vowel = set(('a', 'e', 'i', 'o', 'u'))
+        for i in range(1, n + 1):
+            if words[i - 1][0] in vowel and words[i - 1][len(words[i - 1]) - 1] in vowel:
+                prefix[i] += 1 
+            prefix[i] += prefix[i - 1]
+        
+        for i in range(m):
+            l, r = queries[i]
+            answer[i] = prefix[r + 1] - prefix[l]
+        return answer
+EOS
+Medium,2563. Count the Number of Fair Pairs,py
+class Solution:
+    def countFairPairs(self, nums: List[int], lower: int, upper: int) -> int:
+        # upper bound
+        def find_right(left, right, target):
+            while left < right:
+                mid = left + (right - left) // 2
+                if nums[mid] > target:
+                    right = mid
+                else:
+                    left = mid + 1
+            return left
+        
+        # lower bound
+        def find_left(left, right, target):
+            while left < right:
+                mid = left + (right - left) // 2
+                if nums[mid] >= target:
+                    right = mid
+                else:
+                    left = mid + 1
+            
+            return left
+    
+        nums.sort()
+        n = len(nums)
+        pairs = 0
+
+        for i in range(n - 1):
+            # binary search min nums that stay within range
+            left = find_left(i + 1, n, lower - nums[i])
+            right = find_right(i + 1, n, upper - nums[i])
+
+            pairs += right - left
+        
+        return pairs
+        
+
+    # TC = O(nlogn), both sorting and searching
+    # SC = O(1), glorified two pointer problem
+EOS
+Medium,2684. Maximum Number of Moves in a Grid,py
+class Solution:
+    def maxMoves(self, grid: List[List[int]]) -> int:
+        # possible moves given
+        possible_moves = [(-1, 1), (0, 1), (1, 1)]
+
+        # used to save moves from a specific point
+        memo = {}
+
+        def dfs(row, col):
+            # if square was already visited -> return max moves from that point on
+            if (row, col) in memo:
+                return memo[(row, col)]
+            
+            max_moves = -1
+            for r, c in possible_moves:
+                dr, dc = row + r, col + c
+                # if next move is in the grid
+                if (dr > -1 and dr < len(grid)) and (dc > -1 and dc < len(grid[0])):
+                    if grid[dr][dc] > grid[row][col]:
+                        max_moves = max(max_moves, dfs(dr, dc))
+            
+            # save max moves found at that point
+            memo[(row, col)] = max_moves + 1
+            return 1 + max_moves
+
+        max_moves = -1
+        # check down the first column 
+        for i in range(len(grid)):
+            max_moves = max(max_moves, dfs(i, 0))
+        
+        return max_moves
+
+        # Time Complexity = O(m*n), since (worst-case) I visit every single cell/square
+        # Space Complexity = O(m*n), since (worst-case) I cache every single cell/sqaure
+EOS
+Medium,2779. Maximum Beauty of an Array After Applying Operation,py
+class Solution:
+    def maximumBeauty(self, nums: List[int], k: int) -> int:
+        nums.sort()
+        left, right = 0, 0
+        n = len(nums)
+
+        window_len = -1
+        while right < n:
+            right += 1
+            window_len = max(window_len, right - left)
+            while right < n and left < right and nums[left] + k < nums[right] - k:
+                left += 1
+            
+        return max(window_len, right - left)
+
+        # TC = O(nlogn) -> sorting
+        # SC = O(n) -> sorting
+EOS
+Medium,2825. Make String a Subsequence Using Cyclic Increments,py
+class Solution:
+    def canMakeSubsequence(self, str1: str, str2: str) -> bool:
+        n, m = len(str1), len(str2)
+        if n < m:
+            return False
+
+        i, j = 0, 0
+        while i < n and j < m:
+            if str1[i] == str2[j] or (ord(str1[i]) + 1 - ord('a')) % 26 == (ord(str2[j]) - ord('a')):
+                j += 1
+            i += 1
+        
+        return j == m
+
+        # TC = O(n) -> single pass through n letters * O(1) operations
+        # SC = O(1) -> constant amount of variables used
+EOS
+Hard,2872. Maximum Number of K-Divisible Components,py
+class Solution:
+    def maxKDivisibleComponents(self, n: int, edges: List[List[int]], values: List[int], k: int) -> int:
+        adj = collections.defaultdict(list)
+        for a, b in edges:
+            adj[a].append(b)
+            adj[b].append(a)
+        
+        count = [0]
+        def dfs(root, parent):
+            cur_val = values[root]
+            for node in adj[root]:
+                if node != parent:
+                    cur_val += dfs(node, root)
+                
+            if cur_val % k == 0:
+                print(f'valid tree rooted at {root}')
+                count[0] += 1
+
+            return cur_val
+
+        
+        dfs(0, -1)
+        return count[0]
+EOS
+Medium,2924. Find Champion II,py
+class Solution:
+    def findChampion(self, n: int, edges: List[List[int]]) -> int:
+        losers = [False] * n
+
+        for a, b in edges:
+            losers[b] = True
+
+        winner = -1
+        num_win = 0
+        for team in range(n):
+            if not losers[team]:
+                winner = team
+                num_win += 1
+
+        if num_win == 1:
+            return winner
+            
+        return -1 
+
+
+        # TC = O(E), there may or may not be more edges than nodes (depends on the graph)
+        # SC = O(n), losers set contains between 0 to n teams
+EOS
+Medium,2938. Separate Black and White Balls,py
+class Solution:
+    def minimumSteps(self, s: str) -> int:
+        n = len(s)
+        swaps = 0
+        # all white balls belong on the left side -> start of str
+        w = 0
+        # ensure you start where you can perform swaps
+        while w < n and s[w] == '0' :
+            w += 1
+
+        # if already separated, no swapping needed
+        if w == n:
+            return swaps
+        
+        # swaps = dist to closest white ball
+        for i in range(w, n):
+            if s[i] == '0':
+                swaps += i - w
+                w += 1
+        return swaps
+
+        """
+        Time Comlpexity = going through n letters and arithmetic = O(n+1) ~ O(n)
+        Space Complexity = variables = O(1)
+        """
+EOS
+Medium,2981. Find Longest Special Substring That Occurs Thrice I,py
+class Solution:
+    def maximumLength(self, s: str) -> int:
+        intervals = collections.defaultdict(list)
+        start, end = 0, 0
+        while end < len(s):
+            start = end
+            while end < len(s) and s[start] == s[end]:
+                end += 1
+            intervals[s[start]].append((start, end))
+
+        matrix = [[0 for _ in range(len(s) + 1)] for _ in range(26)]
+        for ltr in intervals:
+            print(intervals[ltr])
+            for start, end in intervals[ltr]:
+                size = end - start
+                for i in range(1, size + 1):
+                    matrix[ord(ltr) - ord('a')][i] += size - i + 1
+        
+        candidet = -1
+        for ltr in intervals:
+            row = matrix[ord(ltr) - ord('a')]
+            for i in range(len(row)):
+                if row[i] >= 3:
+                    candidet = max(candidet, i)
+
+        return candidet
+EOS
+Easy,3042. Count Prefix and Suffix Pairs I,py
+'''
+You are given a 0-indexed string array words.
+
+Let's define a boolean function isPrefixAndSuffix that takes two strings, str1 and str2:
+
+isPrefixAndSuffix(str1, str2) returns true if str1 is both a 
+prefix and a suffix of str2, and false otherwise.
+    - same pattern at start + end
+    - str1 is given -> pattern is given
+    - str1 must be smaller than str 2
+
+For example, isPrefixAndSuffix("aba", "ababa") is true because "aba" is a prefix of "ababa" and also a suffix,
+but isPrefixAndSuffix("abc", "abcd") is false.
+    - prefix and suffix can intersect / don't need to be distinct
+
+Return an integer denoting the number of index pairs (i, j) such that i < j, and isPrefixAndSuffix(words[i], words[j]) is true.
+    - only one pair in list
+    - guaranteed that str1 comes before str2
+
+make isPrefixAndSuffix -> use as condition to find pair -> return number of pairs found
+
+isPrefixAndSuffix defn:
+    use two windows (one at start and other at end):
+        if both left and right window == eachother and target -> expand window
+        else -> stop (return False)
+
+        repeat until window of len(target) reached
+        return True
+
+len(words), len(words[i]) = small -> O(n2) allowed
+
+no way of knowing which str is str2 and can't sort since order matters so bf
+bf = for every str:
+        cur = current str
+        for every str before cur:
+            if len(cur) < len(str) and isPrefixAndSuffix is True:
+                count_of_pair ++
+    return count_of_pair
+'''
+
+class Solution:
+    def countPrefixSuffixPairs(self, words: List[str]) -> int:
+        n = len(words)
+        count_of_pairs = 0
+        for i in range(n):
+            for j in range(i + 1, n):
+                if words[j].startswith(words[i]) and words[j].endswith(words[i]):
+                    count_of_pairs += 1
+        return count_of_pairs
+EOS
+Medium,3097. Shortest Subarray With OR at Least K II,py
+class Solution:
+    def minimumSubarrayLength(self, nums: List[int], k: int) -> int:
+        min_length = float("inf")
+        window_start = window_end = 0
+        bit_counts = [0] * 32  # Tracks count of set bits at each position
+
+        # Expand window until end of array
+        while window_end < len(nums):
+            # Add current number to window
+            self._update_bit_counts(bit_counts, nums[window_end], 1)
+
+            # Contract window while OR value is valid
+            while (
+                window_start <= window_end
+                and self._convert_bits_to_num(bit_counts) >= k
+            ):
+                # Update minimum length found so far
+                min_length = min(min_length, window_end - window_start + 1)
+
+                # Remove leftmost number and shrink window
+                self._update_bit_counts(bit_counts, nums[window_start], -1)
+                window_start += 1
+
+            window_end += 1
+
+        return -1 if min_length == float("inf") else min_length
+
+    def _update_bit_counts(
+        self, bit_counts: list, number: int, delta: int
+    ) -> None:
+        # Update counts for each set bit in the number
+        for pos in range(32):
+            if number & (1 << pos):
+                bit_counts[pos] += delta
+
+    def _convert_bits_to_num(self, bit_counts: list) -> int:
+        # Convert bit counts to number using OR operation
+        result = 0
+        for pos in range(32):
+            if bit_counts[pos]:
+                result |= 1 << pos
+        return result
+EOS
+Medium,3133. Minimum Array End,py
+class Solution:
+    def minEnd(self, n: int, x: int) -> int:
+        result = x
+        n -= 1  # Reducing n by 1 to exclude x from the iteration
+        mask = 1
+
+        # Step 1: Iterate while n > 0, using mask for bit positions
+        while n > 0:
+            # Step 2: If the corresponding bit in x is 0
+            if (mask & x) == 0:
+                # Set the bit in result based on least significant bit of n
+                result |= (n & 1) * mask
+                # Shift n right by 1 to process next bit
+                n >>= 1
+            # Shift mask left by 1 for next iteration
+            mask <<= 1
+
+        return result
+EOS
 EOS
