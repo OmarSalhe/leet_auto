@@ -1,1 +1,565 @@
+Medium,3163. String Compression III,py
+class Solution:
+    def compressedString(self, word: str) -> str:
+        n = len(word)
+        comp = []
+
+        i = 0
+        while i < n:
+            count = 0
+            j = i
+            while j < n and word[j] == word[i] and j - i < 9:
+                j += 1
+            
+            count += j - i
+            comp.append(f'{count}')
+            comp.append(word[i])
+            i = j 
+
+        return "".join(comp)
+
+"""
+TC = O(n) -> single-pass
+SC = O(n) -> worst case is only 1 letter streaks formed, therefore every letter has two ouputs 
+            when compressed.
+                i.e. abc = 1a1b1c
+                
+converted the instructions into more optimal code
+
+instructions:
+Begin with an empty string comp. 
+While word is not empty, use the following operation:
+    Remove a maximum length prefix of word made of a single character c repeating at most 9 times. 
+    Append the length of the prefix followed by c to comp.
+Return the string comp.
+
+"""
+EOS
+Medium,2064. Minimized Maximum of Products Distributed to Any Store,py
+class Solution:
+    def canDistribute(self, amount: int, n: int, qty: List[int]) -> bool:
+        i, j = 0, 0
+        distr = 0
+        while i < n and j < len(qty):
+            distr += amount
+            if distr >= qty[j]:
+                distr = 0
+                j += 1
+            i += 1
+        return j == len(qty)
+
+    def minimizedMaximum(self, n: int, quantities: List[int]) -> int:
+        low, high = 0, max(quantities)
+        while low <= high:
+            mid = low + (high - low) // 2
+            if self.canDistribute(mid, n, quantities):
+                high = mid - 1
+            else:
+                low = mid + 1
+
+        return low
+
+        # TC = O(nlog(m)), where m = the max quantity
+        # SC = O(1), no use of auxiliary memory, asides from pointers
+EOS
+Hard,1368. Minimum Cost to Make at Least One Valid Path in a Grid,py
+'''
+Given an m x n grid. Each cell of the grid has a sign pointing to the next cell you should visit if you are currently
+in this cell. The sign of grid[i][j] can be:
+
+    1 which means go to the cell to the right. (i.e go from grid[i][j] to grid[i][j + 1])
+    2 which means go to the cell to the left. (i.e go from grid[i][j] to grid[i][j - 1])
+    3 which means go to the lower cell. (i.e go from grid[i][j] to grid[i + 1][j])
+    4 which means go to the upper cell. (i.e go from grid[i][j] to grid[i - 1][j])
+
+Notice that there could be some signs on the cells of the grid that point outside the grid.
+
+You will initially start at the upper left cell (0, 0). A valid path in the grid is a path that starts
+from the upper left cell (0, 0) and ends at the bottom-right cell (m - 1, n - 1) following the signs on the grid.
+The valid path does not have to be the shortest.
+    - needs to be the 'cheapest'
+        - dijkstra-type?
+        - 01 bfs if dijkstra works?
+    - graph-like problem where all nodes/cell point to an adjacent cell
+        - cycles can occur (not DAG)
+        - edge is weighted 0 if grid[i][j] points to another node/cell and 1 for every 'new' edge added
+            ^
+            |
+You can modify the sign on a cell with cost = 1. You can modify the sign on a cell one time only.
+
+Return the minimum cost to make the grid have at least one valid path.
+
+
+sol: create graph w/ weighted edges -> traverse w/ dijkstra or 01 bfs -> return cost at dist[m*n - 1]
+'''
+
+class Solution:
+    def minCost(self, grid: List[List[int]]) -> int:
+        def is_valid(coord: List[int]) -> bool:
+            return -1 < coord[0] < len(grid) and -1 < coord[1] < len(grid[0])
+        def next_cell(coord: List[int], direction: int):
+            if direction == 1:
+                coord[1] += 1
+            elif direction == 2:
+                coord[1] -= 1
+            elif direction == 3:
+                coord[0] += 1
+            else:
+                coord[0] -= 1
+            
+            return coord
+        
+        adj = defaultdict(list)
+        m, n = len(grid), len(grid[0])
+        for i in range(m):
+            for j in range(n):
+                dx = next_cell([i, j], grid[i][j])
+                if is_valid(dx): # if edge points to a node, add an edge of weight = 0
+                    adj[n * i + j].append([dx[0] * n + dx[1], 0])
+
+                for k in range(1, 5):
+                    if k != grid[i][j]:
+                        dx = next_cell([i, j], k)
+                        if is_valid(dx): # for all other adjacent nodes, add an edge of weight = 1
+                            adj[n * i + j].append([dx[0] * n + dx[1], 1])
+            
+        
+        dist = [float('inf')] * (m*n)
+        dist[0] = 0
+        
+        q = deque()
+        q.append(0)
+
+        while q:
+            u = q.popleft()
+            for v, w in adj[u]:
+                if dist[u] + w < dist[v]:
+                    dist[v] = dist[u] + w
+                
+                    if w == 0:
+                        q.appendleft(v)
+                    else:
+                        q.append(v)
+                        
+        return dist[m*n - 1]
+EOS
+Medium,2683. Neighboring Bitwise XOR,py
+'''
+A 0-indexed array derived with length n is derived by computing the bitwise XOR (⊕) of adjacent values in a binary
+array original of length n.
+    - XOR = excludes shared bits
+    - if derived[i] = 0 -> original[i] = original[i + 1] (cannot differ)
+    - if derived[i] = 1 -> original[i] != original[i + 1] (must differ)
+
+Specifically, for each index i in the range [0, n - 1]:
+
+    If i = n - 1, then derived[i] = original[i] ⊕ original[0].
+        - circular
+    Otherwise, derived[i] = original[i] ⊕ original[i + 1].
+        - if derived[i->i+1] = 01
+            - derived[i] = 0 -> original[i->i+1] = 00 or 11
+            - derived[i + 1] = 1 -> original[i+1->i+2] = 01 or 10
+            => original[i->i+2] = 001 or 110
+        
+            - say derived = 0101
+                - using past points original = 0011 or 1100 (how to choose?)
+
+Given an array derived, your task is to determine whether there exists a valid binary array original that could have formed derived.
+    - will/may be multiple answers -> just pick one
+
+Return true if such an array exists or false otherwise.
+    - case where false: derived = 111
+        - derived[0] = 1 -> original[0->1] = 10 or 01
+            original[0->1] = 10
+                - derived[1] = 1 -> original[1->2] = 01
+                - derived[2] = 1 -> original[2->0] = 10 <- contradiction
+            original[0->1] = 01
+                - derived[1] = 1 -> original[1->2] = 10
+                - derived[2] = 1 -> original[2->0] = 01 <- contradiction
+    
+    - case where true: derived = 110
+        - derived[0] = 1 -> original[0->1] = 10 or 01
+            original[0->1] = 10
+                - derived[1] = 1 -> original[1->2] = 01
+                - derived[2] = 0 -> original[2->0] = 11 <- true
+            original[0->1] = 01
+                - derived[1] = 1 -> original[1->2] = 10
+                - derived[2] = 0 -> original[2->0] = 00 <-true
+
+    - case of all 0s: derived = 000
+        - derived[0] = 0 -> original[0->1] = 11 or 00
+            original[0->1] = 11
+                - derived[1] = 0 -> original[1->2] = 11
+                - derived[2] = 0 -> original[2->0] = 11 <- true
+
+            original[0->1] = 00
+                - derived[1] = 0 -> original[1->2] = 00
+                - derived[2] = 0 -> original[2->0] = 00 <- true
+        
+
+A binary array is an array containing only 0's and 1's
+
+
+- always an initial assumption (whether original[i->i+1] is 01 or 10) if derived[0->1] = 10 or 01
+    - both paths seemingly converge
+- solution involves pf by contradiction
+    - assuming derived comes from a valid original...b/c original[0] cannot both be 0 and 1 the assumption is false
+
+Approach:
+    assume original[0] = 0
+
+    for i in [0->n]
+        if derived[i] = 0
+            if original[(i + 1) % n] not already defined
+                original[(i + 1) % n] = original[i]
+            else
+                return if original[i] == original[(i + 1) % n]
+        if derived[i] = 1
+            if original[(i + 1) % n] not defined
+                original[(i + 1) % n] = ~original[i]
+            else
+                return if original[i] == original[(i + 1) % n]
+
+    if derived = [1,1,0]
+        original = 0??
+
+        i = 0: derived[i] = 1 -> original[(i + 1) % n] == ? -> original[(i + 1) % n] = ~original[i] = 1 -> original = 01?
+        i = 1: derived[i] = 1 -> original[(i + 1) % n] == ? -> original[(i + 1) % n] = ~original[i] = 0 -> original = 010
+        i = 2: derived[i] = 0 -> original[(i + 1) % n] != ? -> original[(i + 1) % n] == original[i] = 0
+
+        true
+'''
+class Solution:
+    def doesValidArrayExist(self, derived: List[int]) -> bool:
+        # derived[i] = XOR(og[i], og[i + 1])
+        # XOR(derived[i], derived[i + 1]) = XOR(og[i], og[i + 1], og[i + 1], og[i + 2]) = XOR(og[i], og[i + 2])
+        # XOR(derived) = XOR(og[0], og[1], og[1], og[2], ... og[n - 2], og[n - 1], og[n - 1], og[0])
+        # XOR(derived) = XOR(og[0], og[0], og[1], og[1], ... , og[n - 2], og[n - 2], og[n - 1], og[n - 1])
+        # XOR(derived) = 0 -> if true
+
+        XOR = 0
+        for bit in derived:
+            XOR ^= bit
+        return XOR == 0
+EOS
+Medium,2657. Find the Prefix Common Array of Two Arrays,py
+'''
+You are given two 0-indexed integer permutations A and B of length n.
+    - len(A) = len(B) = n
+    - same numbers in both A and B -> prefix common equals n at the nth index
+        - only order changes
+
+A prefix common array of A and B is an array C such that C[i] is equal to the count of numbers that are present 
+at or before the index i in both A and B.
+    - prefix common = len(meet(A[:i], B[:i]))
+    - need to keep track of numbers (wit wut though?)
+        - sum fails (1 + 5 = 2 + 4)
+        - bf: go over interval n times w/ a set
+        - build a bit str?
+            - use the numbers as bit places and check via & if a numbers bit is in there?
+                e.g A = 1,2,3,5 -> 10111 -> the 1s in the & of the two are the shared number
+                    B = 3,2,1,4 -> 01111
+
+Return the prefix common array of A and B.
+
+A sequence of n integers is called a permutation if it contains all integers from 1 to n exactly once.
+    - perm (in this case) = 1 -> n in any order
+    - all unique
+    - sum(i); i: 1 -> n = n*(n+1)//2
+
+Decision:
+A = [1,3,2,4], B = [3,1,2,4]
+
+i = 0 -> 1 -> 001 -> & = 0
+         3 -> 100
+i = 1 -> 1, 3 -> 101 -> & = 2
+      -> 3, 1 -> 101
+i = 2 -> 1, 3, 2 -> 111 -> & = 3
+      -> 3, 1, 2 -> 111
+i = 3 -> 1, 3, 2, 4 -> 1111 -> & = 4
+      -> 3, 1, 2, 4 -> 1111
+
+for i in 0 -> n - 1:
+    bit_a += 2**A[i]
+    bit_b += 2**B[i]
+
+    C[i] = bit_b & bit_a
+'''
+class Solution:
+    def findThePrefixCommonArray(self, A: List[int], B: List[int]) -> List[int]:
+        n = len(A)
+        C = [0] * n
+        C[n - 1] = n
+        bb, ba= 0, 0
+        for i in range(n - 1):
+            bb,ba = bb+(1<<A[i]), ba+(1<<B[i])
+            C[i] = (bb & ba).bit_count()
+        return C
+EOS
+Medium,3223. Minimum Length of String After Operations,py
+'''
+You are given a string s.
+
+You can perform the following process on s any number of times:
+    - allowed to use the same point
+
+    Choose an index i in the string such that there is at least one character to the left of index i that
+    is equal to s[i], and at least one character to the right that is also equal to s[i].
+        - s[i] MUST be in [0, i) and (i, n)
+        - need to keep track of letters encountered? -> freq
+        - minimum of 3 instances of s[i] needed (left, center, right)
+
+    Delete the closest character to the left of index i that is equal to s[i].
+    Delete the closest character to the right of index i that is equal to s[i].
+        - HAVE to remove both
+        - can reach freq[s[i]] = 1 if freq[s[i]] is balanced on both sides (i.e. odd)
+            - if even min freq is 2
+                e.g. aaaa -> aa a a -> a a
+                     aaa  -> a a a -> a
+    
+    Return the minimum length of the final string s that you can achieve.  
+
+return adjusted length after applying following condition to letters with freq >= 3
+if freq[s[i]] even -> freq[s[i]] = 2
+if freq[s[i]] odd -> freq[s[i]] = 1
+
+Decision:
+s = "abaacbcbb"
+freq: a=3, b=4, c=2
+adjusted: a=1, b=2, c=2
+total = 5
+
+Approach:
+track frequency 
+adjust frequency of letters that occur more than 2 times
+return new len
+'''
+class Solution:
+    def minimumLength(self, s: str) -> int:
+        if len(s) < 3:
+            return len(s)
+        
+        count = Counter(s)
+        new_len = sum((num if num < 3 else (1 if num % 2 else 2)) for num in count.values())
+
+        return new_len
+EOS
+Medium,3254. Find the Power of K-Size Subarrays I,py
+class Solution:
+    def resultsArray(self, nums: List[int], k: int) -> List[int]:
+        n = len(nums)
+        res = []
+
+        """
+        q = if a sub of k elements is sorted(<) -> find its max -> add to res list
+            else -> add -1 to res list
+            
+        approach:
+            starting at 0 go k elements
+                if sorted (nums[i-1] < nums[i]) -> find max so far
+                else -> add -1 to res
+            
+
+            shift one forward
+            if sorted -> re-find max (slow part), add to res
+                else -> add -1 to res
+
+            repeat
+        """
+
+        for i in range(n - k + 1):
+            j = i + 1
+            while j < n and j < (i + k) and nums[j-1] < nums[j] and abs(nums[j-1] - nums[j]) == 1:
+                j += 1
+            # print(f'cur sub: {nums[i:j]}')
+            # print(f'ideal sub: {nums[i: i+k]}')
+            if j == i + k:
+                res.append(max(nums[i:j]))
+            else:
+                res.append(-1)
+            
+        return res
+EOS
+Medium,802. Find Eventual Safe States,py
+'''
+There is a directed graph of n nodes with each node labeled from 0 to n - 1. The graph
+is represented by a 0-indexed 2D integer array graph where graph[i] is an integer array of nodes
+adjacent to node i, meaning there is an edge from node i to each node in graph[i].
+    - adj list given
+
+A node is a terminal node if there are no outgoing edges. A node is a safe node if every possible
+path starting from that node leads to a terminal node (or another safe node).
+    - terminal = sink
+    - safe = acyclic/not a part of a cycle
+    - all edges from node must connect to the terminal or a node that reaches the terminal
+        - keep track of which node reaches a terminal
+            - start from arbitrary node -> if all edges lead to terminal or to a node that has reached a terminal node: T, else F
+            - how to detect cycles? -> keep track of visited nodes (dfs)
+        - group nodes that are acyclic, return all valid groupings (DSU)
+
+Return an array containing all the safe nodes of the graph. The answer should be sorted in ascending order.
+    - return all acyclic paths formed on the graph
+
+
+dfs(i, path)
+    if can_reach[i] != -1:
+        return T if can_reach[i] else F -> 1 = T, 0 = F
+    if i in path -> prevents cycle
+        return F
+    
+    path.add(i) -> keep track of path
+    is_valid = T -> def
+    for neig in graph[i]
+        is_valid = is_valid and dfs(neig) -> if all paths reach an end, final res is T
+    
+    can_reach[i] = 1 if is_valid else 0
+    return is_valid
+'''
+
+class Solution:
+    def eventualSafeNodes(self, graph: List[List[int]]) -> List[int]:
+        n = len(graph)
+        can_reach = [-1] * n
+
+        def dfs(i: int, path: set):
+            if i in path:
+                can_reach[i] = 0
+                return False
+            if can_reach[i] != -1:
+                return can_reach[i] == 1
+
+            path.add(i)
+            is_valid = True
+            for neig in graph[i]:
+                if can_reach[i] == -1:
+                    is_valid = is_valid and dfs(neig, path)
+                else:
+                    is_valid = is_valid and (can_reach[i] == 1)
+            
+            can_reach[i] = 1 if is_valid else 0
+            path.remove(i)
+            return is_valid
+        
+        out = []
+        for i in range(n):
+            if can_reach[i] == 1 or (dfs(i, set())):
+                out.append(i)
+        return out
+EOS
+Medium,2429. Minimize XOR,py
+'''
+Given two positive integers num1 and num2, find the positive integer x such that:
+
+x has the same number of set bits as num2, and
+    - x does not need to equal num2
+    - can only exclude as many bits in num1 as num2 has bits
+
+The value x XOR num1 is minimal.
+    - x should, ideally, contain all bits in num1, starting from the most significant bits
+      i.e. x = num1 + remaining bits
+        - if more set bits in num2 than num1, should allocate remaining bits to least significant bits available
+          e.g. num1 = 100, num2 = 1101 -> x = 111
+        - if equal set bits in num2 and num1, x = num1
+          e.g. num1 = 100, num2 = 1 -> x = 100
+        - if less set bits in num2 than num1, should allocate all bits to the most significant bits in num1
+          e.g. num1 = 1010, num2 = 10 -> x = 1000
+Note that XOR is the bitwise XOR operation.
+    - XOR = 1 if diff else 0
+    - excludes matching bits and keeps varying bits
+
+Return the integer x. The test cases are generated such that x is uniquely determined.
+    - idk what this means
+
+The number of set bits of an integer is the number of 1's in its binary representation.
+
+Decision:
+num1 = 3 = 011, num2 = 5 = 110
+
+k bits available
+if k == 0:
+    ith bit = num1_bits[i] -> if 0 no bits needed, else k --
+
+repeat while k > 0
+'''
+
+class Solution:
+    def fill_binary(self, n: int, arr: List[int]) -> None:
+        i = 0
+        while n > 0 and i < len(arr):
+            arr[i] = n % 2
+            n //= 2
+
+            i += 1
+        
+    def minimizeXor(self, num1: int, num2: int) -> int:
+        n = max(num1.bit_length(), num2.bit_length())
+        bit1, x = [0] * n, 0
+
+        self.fill_binary(num1, bit1)
+        k = num2.bit_count()
+
+        i = n - 1
+        while i > -1 and k > 0:
+            if bit1[i]:
+                x += 1 << i
+                k -= 1
+            i -= 1
+
+        i = 0
+        while k > 0 and i < n:
+            if bit1[i] == 0:
+                x += 1 << i
+                k -= 1
+            i += 1
+        
+        return x
+EOS
+Medium,2425. Bitwise XOR of All Pairings,py
+'''
+You are given two 0-indexed arrays, nums1 and nums2, consisting of non-negative integers.
+There exists another array, nums3, which contains the bitwise XOR of all pairings of integers between
+nums1 and nums2 (every integer in nums1 is paired with every integer in nums2 exactly once).
+    - nums3 is assumed to exist, but not given
+    - len(nums3) = m * n
+    - XOR = exclude shared bits
+        1 1  0
+        1 0  1 
+        0 1  1
+        0 0  0
+    - nums3 pairs every number
+        - n * m pairs; n = len(nums1), m = len(nums2)
+            0 -> (0, 0), (0, 1), ... , (0, m - 1)
+            ...
+            n - 1 -> (n - 1, 0), (n - 1, 1), ... , (n - 1, m - 1)
+        - i repeats m times, j repeats n times
+          i.e. m elements in nums3 look like XOR(c, nums2[j]); j:=0->m-1, c = nums1[i]
+            - XOR({all elements with c}) = XOR(XOR(c, ... , c), XOR(nums2[0], nums2[1], ... nums2[m - 1])) = XOR(XOR(c, ... , c), XOR(nums2))
+                - if count(c) even -> c XOR c XOR ... XOR c = 0
+                - if count(c) odd -> c XOR c XOR ... XOR c = c
+                - count(c) = len(nums2) = m
+            - if m odd -> XOR(nums1) = XOR(nums1)
+            - if n odd -> XOR(nums2) = XOR(num2)
+            - else -> XOR(num1 / nums2) = 0
+
+'''
+
+class Solution:
+    def XOR(self, arr: List[int]) -> int:
+        n, res = len(arr), 0
+        for num in arr:
+            res ^= num
+        
+        return res
+        
+    def xorAllNums(self, nums1: List[int], nums2: List[int]) -> int:
+        n, m = len(nums1), len(nums2)
+        a, b = 0, 0
+        if m % 2 == 0 and n % 2 == 0: return 0
+        if m % 2:
+            a = self.XOR(nums1)
+        if n % 2:
+            b = self.XOR(nums2)
+        
+        return a ^ b
+EOS
 EOS
